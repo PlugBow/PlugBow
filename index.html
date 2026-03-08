@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>SMP Helper — AI Chat (Hinglish vibes) 🎮</title>
+<link rel="icon" href="data:,🎮" />
+<style>
+  :root{
+    --bg:#0b1020; --card:#0f1724; --accent:#ff7a59; --muted:#9aa4b2; --bubble-left:#111827; --bubble-right:#0b1220;
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  }
+  body{margin:0;background:linear-gradient(180deg,#02030a 0%, #071025 100%);color:#e6eef8;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:18px}
+  .app{width:100%;max-width:980px;border-radius:12px;background:linear-gradient(180deg,var(--card),#081026);box-shadow:0 10px 40px rgba(2,6,23,.7); overflow:hidden}
+  header{display:flex;gap:12px;align-items:center;padding:18px 20px;border-bottom:1px solid rgba(255,255,255,.03)}
+  header .logo{font-size:20px;font-weight:700;color:var(--accent)} header .sub{font-size:13px;color:var(--muted)}
+  .main{display:flex;gap:12px}
+  .left{flex:1;padding:18px;min-height:420px;max-height:70vh;overflow:auto}
+  .right{width:320px;border-left:1px solid rgba(255,255,255,.03);padding:18px;background:linear-gradient(180deg, rgba(255,255,255,.01), transparent)}
+  .msg{margin:10px 0;display:flex}
+  .msg .bubble{padding:12px 14px;border-radius:12px;max-width:78%;line-height:1.35}
+  .msg.user{justify-content:flex-end}
+  .msg.user .bubble{background:linear-gradient(90deg,#0b1220,#071226);border:1px solid rgba(255,255,255,.02);color:#d7f1ff}
+  .msg.bot .bubble{background:linear-gradient(90deg,#0f1a2a,#07101a);border:1px solid rgba(255,255,255,.02);color:#e6eef8}
+  .controls{display:flex;gap:8px;padding:12px;border-top:1px solid rgba(255,255,255,.03);align-items:center}
+  .controls textarea{flex:1;min-height:48px;max-height:150px;padding:10px;border-radius:8px;background:#061022;border:1px solid rgba(255,255,255,.02);color:inherit;resize:vertical}
+  .btn{background:var(--accent);border:none;padding:10px 14px;border-radius:8px;color:#07101a;font-weight:700;cursor:pointer}
+  .meta{font-size:13px;color:var(--muted);margin-bottom:8px}
+  .small{font-size:12px;color:var(--muted)}
+  .system-box{background:#04061a;padding:10px;border-radius:8px;font-family:monospace;color:#9fb6d1;white-space:pre-wrap;max-height:150px;overflow:auto}
+  .hint{font-size:12px;color:var(--muted);margin-top:8px}
+  footer{padding:10px 18px;text-align:center;color:var(--muted);font-size:13px}
+  a.link{color:var(--accent);text-decoration:none}
+  .chip{display:inline-block;background:rgba(255,255,255,.03);padding:6px 8px;border-radius:999px;font-size:12px;margin:4px 4px 0 0}
+</style>
+</head>
+<body>
+<div class="app" role="application" aria-label="SMP AI Chat">
+  <header>
+    <div style="flex:1">
+      <div class="logo">SMP Helper AI — Hinglish Mode 🎮</div>
+      <div class="sub">Ask about plugins, commands, hosting, setup, troubleshooting — sab bataunga! 🇮🇳✨</div>
+    </div>
+    <div class="sub small">Pro tip: Use short plugin names like <span class="chip">GriefPrevention</span> <span class="chip">CoreProtect</span></div>
+  </header>
+
+  <div class="main">
+    <div class="left" id="chat">
+      <!-- chat messages will be injected here -->
+      <div class="msg bot">
+        <div class="bubble" id="welcome">
+          Hey bro 👋 — main tumhara SMP assistant hoon. Type karo koi command, plugin name, ya hosting query (e.g. <code>commands for CoreProtect</code>) — aur mai detailed Hinglish answer aur examples dunga with emojis! 🎮⚡
+        </div>
+      </div>
+    </div>
+
+    <aside class="right">
+      <div class="meta">System Prompt (editable)</div>
+      <div class="system-box" id="systemPrompt" contenteditable="false"></div>
+
+      <div class="hint">Proxy endpoint (frontend -> backend):</div>
+      <input id="apiEndpoint" value="/api/chat" style="width:100%;padding:8px;margin-top:8px;border-radius:6px;background:#021026;border:1px solid rgba(255,255,255,.02);color:var(--muted)">
+
+      <div class="hint" style="margin-top:12px">Deploy notes:</div>
+      <div class="small">➡️ Put the API-key on server. Use Vercel/Render/Heroku serverless. Do not expose keys on this page.</div>
+    </aside>
+  </div>
+
+  <div class="controls" role="region" aria-label="chat controls">
+    <textarea id="input" placeholder="Ask: e.g. 'How to rollback grief with CoreProtect? /co rollback example'"></textarea>
+    <button id="send" class="btn">Send</button>
+  </div>
+
+  <footer>Made for SMP owners — upload repo to GitHub & enable Pages. Need backend example? Scroll README below. ❤️</footer>
+</div>
+
+<script>
+/* ===========================
+   SYSTEM PROMPT (embed your markdown guide)
+   You pasted the big Markdown guide — we'll use it as the assistant system prompt.
+   Keep it concise but full. The assistant MUST answer in Indian Hinglish + emojis.
+   =========================== */
+const SYSTEM_PROMPT = `You are an expert Minecraft SMP assistant (7+ years plugin/admin experience).
+Tone: Indian gaming Hinglish (mix Hindi+English), chill, helpful, use emojis, short examples, step-by-step when needed.
+Scope: Provide plugin commands, permission nodes, installation tips, hosting comparisons (free vs paid), troubleshooting steps, config examples, and short code snippets for server owners.
+If user asks for commands, return exact command lines and brief explanation.
+If user asks for hosting, return quick free vs paid comparison and recommended hosts.
+If user asks for setup, include Paper/Spigot version, plugin jar placement, and LuckPerms sample permission.
+Always include 1-2 quick actionable steps up front, then expand if requested.
+Do not reveal internal chain-of-thought. Keep answers safe for teens.`;
+
+document.getElementById('systemPrompt').textContent = SYSTEM_PROMPT;
+
+/* ===========================
+   Chat logic — frontend sends { messages } to proxy endpoint
+   messages = [{role:'system', content: SYSTEM_PROMPT}, {role:'user', content: userInput}, ...]
+   Proxy should return assistant text in { reply: '...' } JSON
+   =========================== */
+
+const chatEl = document.getElementById('chat');
+const inputEl = document.getElementById('input');
+const sendBtn = document.getElementById('send');
+const endpointEl = document.getElementById('apiEndpoint');
+
+function appendMessage(role, text){
+  const div = document.createElement('div');
+  div.className = 'msg ' + (role==='user' ? 'user' : 'bot');
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+  bubble.innerHTML = text.replaceAll('\\n','<br>');
+  div.appendChild(bubble);
+  chatEl.appendChild(div);
+  chatEl.scrollTop = chatEl.scrollHeight;
+}
+
+async function sendMessage(){
+  const userText = inputEl.value.trim();
+  if(!userText) return;
+  appendMessage('user', `<b>You:</b> ${escapeHTML(userText)}`);
+  inputEl.value = '';
+  sendBtn.disabled = true;
+  // interim bot typing
+  const typingId = Date.now();
+  appendMessage('bot', '<i>Typing...</i>');
+  try{
+    // Build messages payload
+    const payload = {
+      messages: [
+        {role: 'system', content: SYSTEM_PROMPT},
+        {role: 'user', content: userText}
+      ],
+      // optional: model: 'gpt-5-thinking-mini' or configurable on the server
+    };
+    const resp = await fetch(endpointEl.value || '/api/chat', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(payload)
+    });
+    if(!resp.ok){
+      throw new Error('Server returned ' + resp.status);
+    }
+    const data = await resp.json();
+    // Expecting { reply: "assistant text" } or { choices: [...] } depending on your proxy
+    let reply = data.reply ?? (data.choices ? (data.choices[0].message?.content ?? JSON.stringify(data)) : JSON.stringify(data));
+    // Remove the "Typing..." earlier (last bot message)
+    const last = chatEl.querySelectorAll('.msg.bot .bubble');
+    if(last.length) last[last.length-1].parentNode.remove();
+    appendMessage('bot', `<b>Helper:</b> ${escapeHTML(reply)}`);
+  }catch(err){
+    const last = chatEl.querySelectorAll('.msg.bot .bubble');
+    if(last.length) last[last.length-1].parentNode.remove();
+    appendMessage('bot', `<b>Error:</b> ${escapeHTML(err.message)} — check proxy & server logs ⚠️`);
+  } finally {
+    sendBtn.disabled = false;
+  }
+}
+
+function escapeHTML(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+sendBtn.addEventListener('click', sendMessage);
+inputEl.addEventListener('keydown', (e)=>{ if(e.key==='Enter' && (e.ctrlKey||e.metaKey)) sendMessage(); });
+
+/* small UX: clicking welcome suggests example */
+document.getElementById('welcome').addEventListener('click', ()=>{ inputEl.value = 'commands for CoreProtect (rollback example)'; inputEl.focus(); });
+</script>
+</body>
+</html>
